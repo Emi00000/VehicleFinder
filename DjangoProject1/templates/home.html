@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Finder Home</title>
+    <link rel="stylesheet" href="{% static 'home.css' %}">
+</head>
+<body>
+    <div class="home-container">
+        <header>
+            <h1>Welcome to Car Finder</h1>
+        </header>
+        <main>
+            <p>Your go-to platform for finding your perfect car! Simply answer a few questions in our interactive chat to start the process.</p>
+            <a href="{% url 'chat' %}" class="start-button">Start Chat</a>
+        </main>
+        <footer>
+            <p>&copy; 2025 Car Finder. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>

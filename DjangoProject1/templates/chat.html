@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Finder Chat</title>
+    <link rel="stylesheet" href="{% static 'chat.css' %}">
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <h1>Car Finder Chat</h1>
+        </header>
+        <main>
+            <div id="chat-box"></div>
+            <div class="input-section">
+                <input type="text" id="message-input" placeholder="Type your message...">
+                <button id="send-btn">Send</button>
+                <button id="end-btn">End Chat</button>
+            </div>
+        </main>
+    </div>
+    <script>
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-btn");
+        const endBtn = document.getElementById("end-btn");
+
+        // Function to append messages to the chat
+        function appendMessage(sender, message, type = "normal") {
+            const messageDiv = document.createElement("div");
+            messageDiv.textContent = `${sender}: ${message}`;
+            if (type === "notification") {
+                messageDiv.style.color = "blue"; // Notification messages in blue
+                messageDiv.style.fontWeight = "bold";
+            } else if (type === "error") {
+                messageDiv.style.color = "red"; // Error messages in red
+                messageDiv.style.fontWeight = "bold";
+            }
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Automatically fetch the first bot message when the chat loads
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch("/chat/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ message: "" }) // Empty message to trigger the bot's first question
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.bot_response) {
+                        appendMessage("Bot", data.bot_response);
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        });
+
+        // Function to start the scraping process
+        function startScraping() {
+            appendMessage("Bot", "Starting the scraping process...", "notification");
+
+            fetch("/scrape/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        appendMessage("Bot", data.message, "notification");
+                        if (data.download_url) {
+                            // Create and append the download link
+                            const downloadLink = document.createElement("a");
+                            downloadLink.href = data.download_url;
+                            downloadLink.textContent = "Click here to download the results";
+                            downloadLink.target = "_blank";
+                            downloadLink.style.color = "green"; // Highlight the download link
+                            downloadLink.style.fontWeight = "bold";
+                            chatBox.appendChild(downloadLink);
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    } else if (data.error) {
+                        appendMessage("Bot", `Error: ${data.error}`, "error");
+                    }
+                })
+                .catch(error => {
+                    console.error("Scraping error:", error);
+                    appendMessage("Bot", "An unexpected error occurred during scraping. Please try again later.", "error");
+                });
+        }
+
+        // Handle send button click
+        sendBtn.addEventListener("click", () => {
+            const message = messageInput.value.trim();
+            appendMessage("You", message || "[No Input]");
+            messageInput.value = "";
+
+            fetch("/chat/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ message })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.bot_response) {
+                        appendMessage("Bot", data.bot_response);
+
+                        // Check if scraping should start
+                        if (data.bot_response.includes("Your search will begin shortly!")) {
+                            startScraping();
+                        }
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        });
+
+        // Handle end chat button click
+        endBtn.addEventListener("click", () => {
+            fetch("/chat/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ message: "end chat" })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    appendMessage("Bot", data.bot_response);
+                    setTimeout(() => {
+                        window.location.href = "/"; // Redirect to the home page after ending chat
+                    }, 3000);
+                })
+                .catch(error => console.error("Error:", error));
+        });
+    </script>
+</body>
+</html>
